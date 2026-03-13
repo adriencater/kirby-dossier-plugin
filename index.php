@@ -16,6 +16,9 @@ require __DIR__ . '/lib/git.php';
 // Guard flag to prevent infinite recursion in auto-author hook
 $dossierAutoAuthorRunning = false;
 
+// Temporary storage for PDF render tokens
+$dossierPdfTokens = [];
+
 Kirby::plugin('adrien/dossier', [
 
 	// ── Options ─────────────────────────────────────────────
@@ -28,6 +31,7 @@ Kirby::plugin('adrien/dossier', [
 		'git.branch'     => 'main',
 		// PDF service
 		'pdf.endpoint'   => 'http://localhost:3100/render',
+		'pdf.mode'       => 'html',  // 'html' (inline, for local dev) or 'url' (fetch-based, for production)
 	],
 
 	// ── Blueprints ──────────────────────────────────────────
@@ -106,11 +110,15 @@ Kirby::plugin('adrien/dossier', [
 			}
 		],
 		[
-			// Generate PDF via external service
-			'pattern' => 'fetch/pdf',
-			'method' => 'POST',
-			'action' => function () {
-				$data = json_decode(file_get_contents('php://input'), true);
+			// Serve print-ready HTML for a PDF render token (used by PDF service)
+			'pattern' => 'fetch/pdf-render/(:any)',
+			'action' => function ($token) {
+				$tmpFile = sys_get_temp_dir() . '/dossier-pdf-' . preg_replace('/[^a-zA-Z0-9]/', '', $token) . '.json';
+				if (!file_exists($tmpFile)) {
+					return new Kirby\Http\Response('Not found', 'text/plain', 404);
+				}
+
+				$data = json_decode(file_get_contents($tmpFile), true);
 				$ids = $data['ids'] ?? [];
 				$showCover = $data['cover'] ?? false;
 				$showToc = $data['toc'] ?? false;
@@ -118,13 +126,6 @@ Kirby::plugin('adrien/dossier', [
 				$showNotes = $data['notes'] ?? true;
 				$title = $data['title'] ?? '';
 				$pageUrl = $data['pageUrl'] ?? '';
-
-				if (empty($ids)) {
-					return new Kirby\Http\Response(
-						json_encode(['error' => 'No fiche IDs provided']),
-						'application/json', 400
-					);
-				}
 
 				$fiches = array_filter(array_map(function ($id) {
 					return page($id);
@@ -140,27 +141,14 @@ Kirby::plugin('adrien/dossier', [
 					], true);
 				}
 
-				// Collect PDF attachments in fiche order
-				$attachments = [];
 				foreach ($fiches as $fiche) {
 					$parts[] = snippet('dossier-fiche', ['fiche' => $fiche], true);
-					foreach ($fiche->files()->template('dossier-attachment') as $file) {
-						$filePath = $file->root();
-						if (file_exists($filePath)) {
-							$attachments[] = [
-								'data' => base64_encode(file_get_contents($filePath)),
-							];
-						}
-					}
 				}
 
 				$body = implode("\n", $parts);
 
-				// Inline CSS assets
-				$pluginAssets = __DIR__ . '/assets';
-				$styleCss = file_get_contents($pluginAssets . '/css/style.css');
-				$printCss = file_get_contents($pluginAssets . '/css/print.css');
-				$qrJs = file_get_contents($pluginAssets . '/js/qrcode.js');
+				$pluginAssets = url('media/plugins/adrien/dossier');
+				$qrJs = file_get_contents(__DIR__ . '/assets/js/qrcode.js');
 
 				// Visibility overrides
 				$hideRules = '';
@@ -189,38 +177,13 @@ Kirby::plugin('adrien/dossier', [
 					SCRIPT;
 				}
 
-				// Convert image src to inline base64 data URIs
-				$body = preg_replace_callback(
-					'/(<img[^>]+src=")([^"]+)(")/i',
-					function ($m) {
-						$url = $m[2];
-						$mediaPrefix = '/media/';
-						$pos = strpos($url, $mediaPrefix);
-						if ($pos !== false) {
-							$relPath = substr($url, $pos);
-							$filePath = kirby()->root('index') . $relPath;
-						} elseif (str_starts_with($url, '/')) {
-							$filePath = kirby()->root('index') . $url;
-						} else {
-							return $m[0];
-						}
-						if (file_exists($filePath)) {
-							$mime = mime_content_type($filePath);
-							$data = base64_encode(file_get_contents($filePath));
-							return $m[1] . 'data:' . $mime . ';base64,' . $data . $m[3];
-						}
-						return $m[0];
-					},
-					$body
-				);
-
 				$html = <<<HTML
 				<!doctype html>
 				<html>
 				<head>
 				<meta charset="utf-8">
-				<style>{$styleCss}</style>
-				<style>{$printCss}</style>
+				<link rel="stylesheet" href="{$pluginAssets}/css/style.css">
+				<link rel="stylesheet" href="{$pluginAssets}/css/print.css">
 				<style>{$hideRules}</style>
 				<script>{$qrJs}</script>
 				{$qrInit}
@@ -231,11 +194,166 @@ Kirby::plugin('adrien/dossier', [
 				</html>
 				HTML;
 
+				// Clean up token file
+				@unlink($tmpFile);
+
+				return new Kirby\Http\Response($html, 'text/html', 200);
+			}
+		],
+		[
+			// Generate PDF via external service
+			'pattern' => 'fetch/pdf',
+			'method' => 'POST',
+			'action' => function () {
+				$data = json_decode(file_get_contents('php://input'), true);
+				$ids = $data['ids'] ?? [];
+				$showCover = $data['cover'] ?? false;
+				$showToc = $data['toc'] ?? false;
+				$showMeta = $data['meta'] ?? true;
+				$showNotes = $data['notes'] ?? true;
+				$title = $data['title'] ?? '';
+				$pageUrl = $data['pageUrl'] ?? '';
+
+				if (empty($ids)) {
+					return new Kirby\Http\Response(
+						json_encode(['error' => 'No fiche IDs provided']),
+						'application/json', 400
+					);
+				}
+
+				$fiches = array_filter(array_map(function ($id) {
+					return page($id);
+				}, $ids));
+
+				// Collect PDF attachments
+				$attachments = [];
+				foreach ($fiches as $fiche) {
+					foreach ($fiche->files()->template('dossier-attachment') as $file) {
+						$filePath = $file->root();
+						if (file_exists($filePath)) {
+							$attachments[] = [
+								'data' => base64_encode(file_get_contents($filePath)),
+							];
+						}
+					}
+				}
+
 				$endpoint = option('adrien.dossier.pdf.endpoint', 'http://localhost:3100/render');
-				$payload = json_encode([
-					'html' => $html,
-					'attachments' => $attachments,
-				]);
+
+				// Determine rendering mode: URL-based or inline HTML
+				$pdfMode = option('adrien.dossier.pdf.mode', 'html');
+
+				if ($pdfMode === 'url') {
+					// URL mode: store selection in temp file, send URL to PDF service
+					$token = bin2hex(random_bytes(16));
+					$tmpFile = sys_get_temp_dir() . '/dossier-pdf-' . $token . '.json';
+					file_put_contents($tmpFile, json_encode($data));
+
+					$siteUrl = rtrim(site()->url(), '/');
+					$renderUrl = $siteUrl . '/fetch/pdf-render/' . $token;
+
+					$payload = json_encode([
+						'url' => $renderUrl,
+						'attachments' => $attachments,
+					]);
+				} else {
+					// HTML mode: build self-contained HTML with inlined assets
+					$parts = [];
+
+					if ($showCover) {
+						$parts[] = snippet('dossier-cover', [
+							'fiches' => $fiches,
+							'showToc' => $showToc,
+							'title' => $title,
+						], true);
+					}
+
+					foreach ($fiches as $fiche) {
+						$parts[] = snippet('dossier-fiche', ['fiche' => $fiche], true);
+					}
+
+					$body = implode("\n", $parts);
+
+					// Inline CSS assets
+					$pluginAssets = __DIR__ . '/assets';
+					$styleCss = file_get_contents($pluginAssets . '/css/style.css');
+					$printCss = file_get_contents($pluginAssets . '/css/print.css');
+					$qrJs = file_get_contents($pluginAssets . '/js/qrcode.js');
+
+					// Visibility overrides
+					$hideRules = '';
+					if (!$showMeta) {
+						$hideRules .= '.fiche-authors, .fiche-date { display: none !important; }';
+					}
+					if (!$showNotes) {
+						$hideRules .= '.fiche-notes { display: none !important; }';
+					}
+
+					// QR code init script
+					$qrInit = '';
+					if ($showCover && $pageUrl) {
+						$escapedUrl = htmlspecialchars($pageUrl, ENT_QUOTES);
+						$qrInit = <<<SCRIPT
+						<script>
+						(function() {
+							var el = document.getElementById("cover-qr");
+							if (!el) return;
+							var qr = qrcode(0, "M");
+							qr.addData("{$escapedUrl}");
+							qr.make();
+							el.innerHTML = qr.createSvgTag(4);
+						})();
+						</script>
+						SCRIPT;
+					}
+
+					// Convert image src to inline base64 data URIs
+					$body = preg_replace_callback(
+						'/(<img[^>]+src=")([^"]+)(")/i',
+						function ($m) {
+							$url = $m[2];
+							$mediaPrefix = '/media/';
+							$pos = strpos($url, $mediaPrefix);
+							if ($pos !== false) {
+								$relPath = substr($url, $pos);
+								$filePath = kirby()->root('index') . $relPath;
+							} elseif (str_starts_with($url, '/')) {
+								$filePath = kirby()->root('index') . $url;
+							} else {
+								return $m[0];
+							}
+							if (file_exists($filePath)) {
+								$mime = mime_content_type($filePath);
+								$data = base64_encode(file_get_contents($filePath));
+								return $m[1] . 'data:' . $mime . ';base64,' . $data . $m[3];
+							}
+							return $m[0];
+						},
+						$body
+					);
+
+					$html = <<<HTML
+					<!doctype html>
+					<html>
+					<head>
+					<meta charset="utf-8">
+					<style>{$styleCss}</style>
+					<style>{$printCss}</style>
+					<style>{$hideRules}</style>
+					<script>{$qrJs}</script>
+					{$qrInit}
+					</head>
+					<body class="print-view">
+					{$body}
+					</body>
+					</html>
+					HTML;
+
+					$payload = json_encode([
+						'html' => $html,
+						'attachments' => $attachments,
+					]);
+				}
 
 				$context = stream_context_create([
 					'http' => [

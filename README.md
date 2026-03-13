@@ -111,7 +111,14 @@ Edit your dossier page in the Panel and set an access password in the sidebar. U
 
 ## Configuration
 
-Add options to your `site/config/config.php`:
+Create the config directory and file if they don't exist:
+
+```bash
+mkdir -p site/config
+touch site/config/config.php
+```
+
+Then add your options to `site/config/config.php`:
 
 ```php
 return [
