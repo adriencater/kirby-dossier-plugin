@@ -1,0 +1,127 @@
+/* Minimal structural styles — design TBD */
+
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+
+body {
+	margin: 0;
+	font-family: system-ui, sans-serif;
+}
+
+.dossier {
+	display: flex;
+	min-height: 100vh;
+}
+
+.dossier-nav {
+	width: 20rem;
+	flex-shrink: 0;
+	padding: 1rem;
+	border-right: 1px solid #ddd;
+	overflow-y: auto;
+}
+
+.dossier-main {
+	flex: 1;
+	padding: 2rem;
+	overflow-y: auto;
+}
+
+/* TOC */
+
+.toc {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+}
+
+.toc-item {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+}
+
+.toc-folder-title {
+	font-weight: bold;
+	display: block;
+	margin-top: 1em;
+}
+
+.toc-folder .toc {
+	padding-left: 1rem;
+}
+
+.toc-select {
+	background: none;
+	border: none;
+	cursor: pointer;
+	padding: 0.25rem;
+}
+
+.toc-dot {
+	display: inline-block;
+	width: 0.5rem;
+	height: 0.5rem;
+	border-radius: 50%;
+	border: 1.5px solid currentColor;
+}
+
+.toc-select.is-selected .toc-dot {
+	background: currentColor;
+}
+
+.toc-link {
+	text-decoration: none;
+	color: inherit;
+}
+
+.toc-link:hover {
+	text-decoration: underline;
+}
+
+/* Options */
+
+.dossier-options ul {
+	list-style: none;
+	padding: 0;
+	margin: 0 0 0.75rem;
+}
+
+.dossier-options li {
+	margin: 0.25rem 0;
+}
+
+/* Fiche */
+
+.fiche {
+	margin-bottom: 2rem;
+}
+
+.fiche-header {
+	margin-bottom: 1rem;
+}
+
+.fiche-authors {
+	font-style: italic;
+}
+
+.fiche-notes {
+	margin-top: 1rem;
+	padding-top: 1rem;
+	border-top: 1px solid #ddd;
+}
+
+/* Print / Screen visibility */
+
+@media screen {
+	.onlyPrint,
+	.noPrint { display: none; }
+}
+
+@media print {
+	.onlyScreen,
+	.noScreen { display: none; }
+}

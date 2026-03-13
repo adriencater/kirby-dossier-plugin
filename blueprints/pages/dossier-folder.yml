@@ -1,0 +1,34 @@
+title: Folder
+
+icon: folder
+
+columns:
+  main:
+    width: 2/3
+    sections:
+      listed:
+        type: pages
+        label: Published
+        status: listed
+        templates:
+          - fiche
+          - dossier-folder
+        sortBy: modified desc
+        info: "{{ page.modified('d.m.Y') }}"
+  sidebar:
+    width: 1/3
+    sections:
+      drafts:
+        type: pages
+        label: Drafts
+        status: drafts
+        templates:
+          - fiche
+          - dossier-folder
+      unlisted:
+        type: pages
+        label: Unlisted
+        status: unlisted
+        templates:
+          - fiche
+          - dossier-folder

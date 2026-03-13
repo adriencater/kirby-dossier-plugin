@@ -1,0 +1,18 @@
+{
+	"name": "adrien/kirby-dossier",
+	"description": "Document catalog plugin for Kirby 5 — manage collections of fiches with two-column UI, PDF export, and git integration",
+	"type": "kirby-plugin",
+	"license": "MIT",
+	"version": "1.0.0",
+	"authors": [
+		{
+			"name": "Adrien"
+		}
+	],
+	"require": {
+		"getkirby/composer-installer": "^1.2"
+	},
+	"extra": {
+		"kirby-cms-path": false
+	}
+}

@@ -1,0 +1,15 @@
+title: Image
+
+accept:
+  mime: image/jpeg, image/png, image/gif, image/webp, image/svg+xml
+
+fields:
+  alt:
+    type: text
+    label: Alt text
+  caption:
+    type: text
+    label: Caption
+  credit:
+    type: text
+    label: Credit / Copyright

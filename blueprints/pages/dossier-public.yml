@@ -1,0 +1,19 @@
+title: Dossier (public view)
+
+icon: book
+
+fields:
+  catalog:
+    type: pages
+    label: Dossier
+    help: Select which dossier to display publicly
+    max: 1
+    query: site.children.filterBy('intendedTemplate', 'dossier')
+  showauthors:
+    type: toggle
+    label: Show authors
+    default: false
+  shownotes:
+    type: toggle
+    label: Show notes
+    default: false

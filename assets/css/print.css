@@ -1,0 +1,49 @@
+/* Print / PagedJS stylesheet */
+
+@page {
+	size: A4;
+	margin: 20mm;
+}
+
+.print-view {
+	font-family: system-ui, sans-serif;
+}
+
+/* Each fiche starts on a new page */
+.fiche {
+	break-before: page;
+}
+
+/* Cover doesn't break before (it's the first page) */
+.cover {
+	break-before: auto;
+}
+
+.cover-title {
+	margin-top: 30%;
+	text-align: center;
+}
+
+.cover-subtitle {
+	text-align: center;
+	font-size: 1.2em;
+}
+
+.cover-toc {
+	margin-top: 3rem;
+}
+
+.cover-toc ol {
+	padding-left: 1.5rem;
+}
+
+.cover-qr {
+	margin-top: 3rem;
+	text-align: center;
+}
+
+/* Screen/print visibility */
+.onlyScreen,
+.noScreen {
+	display: none;
+}
