@@ -4,7 +4,7 @@ icon: grid
 
 options:
   changeSlug: true
-  changeStatus: false
+  changeStatus: true
   changeTitle: true
   delete: false
 

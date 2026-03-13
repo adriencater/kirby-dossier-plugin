@@ -23,23 +23,39 @@ A document catalog plugin for Kirby 5. Manage collections of short documents ("f
 
 For server-side PDF generation (optional):
 - Node.js 18+
-- Separate [dossier-pdf-service](https://github.com/adrien/dossier-pdf-service) (see PDF section below)
+- Separate [pdf-service](https://github.com/adriencater/pdf-service) (see PDF section below)
 
 ## Installation
 
-### Manual
+Choose **one** of the two methods below. Do not use both — the plugin must only be installed once.
 
-Download or clone this repository into `site/plugins/dossier`:
+### Option A: Manual
+
+Clone this repository into `site/plugins/dossier`:
 
 ```bash
 cd your-kirby-site
-git clone https://github.com/adrien/kirby-dossier.git site/plugins/dossier
+mkdir -p site/plugins
+git clone https://github.com/adriencater/kirby-dossier-plugin.git site/plugins/dossier
 ```
 
-### Composer
+### Option B: Composer
+
+Add the repository to your `composer.json`:
+
+```json
+"repositories": [
+    {
+        "type": "vcs",
+        "url": "https://github.com/adriencater/kirby-dossier-plugin"
+    }
+]
+```
+
+Then require the package:
 
 ```bash
-composer require adrien/kirby-dossier
+composer require adrien/kirby-dossier:dev-main
 ```
 
 ## Setup
@@ -69,19 +85,27 @@ columns:
           - home
 ```
 
-### 2. Create a dossier
+### 2. Start Kirby
+
+```bash
+composer start
+```
+
+Then go to `http://localhost:8000/panel` to access the Panel.
+
+### 3. Create a dossier
 
 In the Kirby Panel, create a new page using the **Dossier** template. This is your private, password-protected document catalog.
 
 Inside the dossier, create pages using the **Fiche** template for documents, or **Folder** template to organize them into groups.
 
-### 3. Create a public view (optional)
+### 4. Create a public view (optional)
 
 Create a page using the **Dossier (public view)** template. In its settings, select which dossier to display. Only listed (published) fiches will be shown.
 
 Configure whether to show authors and notes in the public view.
 
-### 4. Set a password
+### 5. Set a password
 
 Edit your dossier page in the Panel and set an access password in the sidebar. Users must enter this password to access the private view.
 
@@ -115,7 +139,7 @@ The PDF button works out of the box using PagedJS in the browser. It opens a pri
 
 For headless PDF generation, run the separate PDF service:
 
-1. Set up the [dossier-pdf-service](https://github.com/adrien/dossier-pdf-service) (Node.js + Puppeteer + PagedJS)
+1. Set up the [pdf-service](https://github.com/adriencater/pdf-service) (Node.js + Puppeteer + PagedJS)
 2. Point the plugin to it:
    ```php
    'adrien.dossier' => [
