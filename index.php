@@ -355,20 +355,28 @@ Kirby::plugin('adrien/dossier', [
 					]);
 				}
 
-				$context = stream_context_create([
-					'http' => [
-						'method' => 'POST',
-						'header' => "Content-Type: application/json\r\n",
-						'content' => $payload,
-						'timeout' => 120,
-					]
+				$ch = curl_init($endpoint);
+				curl_setopt_array($ch, [
+					CURLOPT_POST => true,
+					CURLOPT_POSTFIELDS => $payload,
+					CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
+					CURLOPT_RETURNTRANSFER => true,
+					CURLOPT_TIMEOUT => 120,
 				]);
+				$pdf = curl_exec($ch);
+				$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+				$curlError = curl_error($ch);
+				curl_close($ch);
 
-				$pdf = @file_get_contents($endpoint, false, $context);
-
-				if ($pdf === false) {
+				if ($pdf === false || $httpCode !== 200) {
 					return new Kirby\Http\Response(
-						json_encode(['error' => 'PDF service unavailable']),
+						json_encode([
+							'error' => 'PDF service unavailable',
+							'detail' => $curlError ?: $pdf,
+							'endpoint' => $endpoint,
+							'http_code' => $httpCode,
+							'payload_size' => strlen($payload),
+						]),
 						'application/json', 502
 					);
 				}

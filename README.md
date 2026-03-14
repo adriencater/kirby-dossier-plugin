@@ -132,6 +132,7 @@ return [
 
         // PDF service (optional)
         'pdf.endpoint'   => 'http://localhost:3100/render',
+        'pdf.mode'       => 'html',  // 'html' or 'url' (see PDF section below)
     ],
 ];
 ```
@@ -156,6 +157,26 @@ For headless PDF generation, run the separate PDF service:
 3. The PDF button will use server-side generation, with automatic client-side fallback if the service is unavailable
 
 The server-side PDF includes attached PDFs — they are appended as pages after the main content.
+
+### PDF rendering modes
+
+The `pdf.mode` option controls how HTML is sent to the PDF service:
+
+- **`html`** (default) — the plugin assembles self-contained HTML (inlined CSS, base64 images) and posts it directly to the PDF service. Works with PHP's built-in dev server and any hosting setup.
+- **`url`** — the plugin stores the print data in a temporary file and sends a URL to the PDF service, which fetches the page via Puppeteer. This keeps the request payload small, but requires a production PHP setup (PHP-FPM) since the server must handle concurrent requests. Does not work with PHP's single-threaded dev server.
+
+### Deployment example (Fly.io)
+
+The PDF service requires a headless Chromium browser (via Puppeteer), so it needs a hosting platform that supports it. Managed Node.js hosting (e.g. Infomaniak) typically lacks the required system libraries. Platforms with Docker support work well:
+
+1. Deploy the [pdf-service](https://github.com/adriencater/pdf-service) to [Fly.io](https://fly.io), [Railway](https://railway.app), [Render](https://render.com), or similar using the included Dockerfile
+2. Set the `PORT` environment variable to match the platform's expected port (e.g. `8080` for Fly.io)
+3. Configure the plugin with the deployed URL:
+   ```php
+   'adrien.dossier' => [
+       'pdf.endpoint' => 'https://your-pdf-service.fly.dev/render',
+   ],
+   ```
 
 ## Customization
 
