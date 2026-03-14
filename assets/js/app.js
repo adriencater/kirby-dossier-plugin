@@ -279,9 +279,18 @@ document.addEventListener('DOMContentLoaded', function () {
 		});
 	}
 
+	function setPdfLoading(loading) {
+		if (btnPdf) btnPdf.disabled = loading;
+		if (btnPdfDownload) btnPdfDownload.disabled = loading;
+		var spinner = document.getElementById('pdf-spinner');
+		if (spinner) spinner.style.display = loading ? 'inline-block' : 'none';
+	}
+
 	function handlePdf(mode) {
 		var ids = exportIds();
 		if (ids.length === 0) return;
+
+		setPdfLoading(true);
 
 		var payload = {
 			ids: ids,
@@ -313,7 +322,9 @@ document.addEventListener('DOMContentLoaded', function () {
 			} else {
 				window.open(url, '_blank');
 			}
+			setPdfLoading(false);
 		}).catch(function () {
+			setPdfLoading(false);
 			// Fallback to client-side PagedJS
 			handlePdfClientSide();
 		});

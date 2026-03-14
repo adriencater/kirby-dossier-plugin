@@ -29,6 +29,7 @@
 			<div class="btn-pdf-group">
 				<button class="btn-pdf" id="btn-pdf">PDF</button>
 				<button class="btn-pdf-download" id="btn-pdf-download" title="Download PDF">&#x2193;</button>
+				<span id="pdf-spinner" class="pdf-spinner" style="display:none"></span>
 			</div>
 		</div>
 	</nav>
