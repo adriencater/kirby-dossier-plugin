@@ -6,7 +6,7 @@
 	<?php if ($loginError): ?>
 		<p class="login-error">Incorrect password.</p>
 	<?php endif ?>
-	<form method="get" action="<?= $page->url() ?>">
+	<form method="post" action="<?= $page->url() ?>">
 		<label for="password">Password</label>
 		<input type="password" name="password" id="password" required>
 		<button type="submit">Enter</button>

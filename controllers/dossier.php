@@ -10,8 +10,9 @@ return function ($page, $kirby) {
 		$sessionKey = 'dossier_auth_' . $page->id();
 		$session = $kirby->session();
 
-		if (get('password') !== null) {
-			if (get('password') === $password) {
+		$submitted = $kirby->request()->method() === 'POST' ? $kirby->request()->body()->get('password') : null;
+		if ($submitted !== null) {
+			if ($submitted === $password) {
 				$session->set($sessionKey, true);
 				$authenticated = true;
 			}
@@ -27,6 +28,6 @@ return function ($page, $kirby) {
 	return [
 		'authenticated' => $authenticated,
 		'children' => $children,
-		'loginError' => get('password') !== null && !$authenticated,
+		'loginError' => $submitted !== null && !$authenticated,
 	];
 };
