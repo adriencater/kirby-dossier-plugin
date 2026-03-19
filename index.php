@@ -182,8 +182,8 @@ Kirby::plugin('adrien/dossier', [
 				<html>
 				<head>
 				<meta charset="utf-8">
-				<link rel="stylesheet" href="{$pluginAssets}/css/style.css">
-				<link rel="stylesheet" href="{$pluginAssets}/css/print.css">
+				<link rel="stylesheet" href="{$pluginAssets}/css/dossier-style.css">
+				<link rel="stylesheet" href="{$pluginAssets}/css/dossier-print.css">
 				<style>{$hideRules}</style>
 				<script>{$qrJs}</script>
 				{$qrInit}
@@ -276,8 +276,13 @@ Kirby::plugin('adrien/dossier', [
 
 					// Inline CSS assets
 					$pluginAssets = __DIR__ . '/assets';
-					$styleCss = file_get_contents($pluginAssets . '/css/style.css');
-					$printCss = file_get_contents($pluginAssets . '/css/print.css');
+					$siteAssetsDir = kirby()->root('assets') . '/css';
+					$styleCss = file_exists($siteAssetsDir . '/dossier-style.css')
+						? file_get_contents($siteAssetsDir . '/dossier-style.css')
+						: file_get_contents($pluginAssets . '/css/dossier-style.css');
+					$printCss = file_exists($siteAssetsDir . '/dossier-print.css')
+						? file_get_contents($siteAssetsDir . '/dossier-print.css')
+						: file_get_contents($pluginAssets . '/css/dossier-print.css');
 					$qrJs = file_get_contents($pluginAssets . '/js/qrcode.js');
 
 					// Visibility overrides

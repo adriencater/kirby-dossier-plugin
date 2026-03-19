@@ -198,7 +198,7 @@ Your header must include the plugin's CSS and PagedJS:
 <head>
     <meta charset="utf-8">
     <title><?= $page->title() ?></title>
-    <link rel="stylesheet" href="<?= $pluginAssets ?>/css/style.css">
+    <link rel="stylesheet" href="<?= $pluginAssets ?>/css/dossier-style.css">
     <!-- Add your own stylesheets here -->
     <script src="<?= $pluginAssets ?>/js/paged.js"></script>
 </head>
@@ -219,7 +219,16 @@ window.dossierConfig = { assets: '<?= $pluginAssets ?>' };
 
 ### CSS
 
-The plugin ships minimal structural CSS. Override styles by adding your own stylesheet after the plugin's in your `dossier-header` snippet.
+The plugin's two CSS files can be overridden by placing your own versions in the site's `assets/css/` directory:
+
+```
+assets/css/dossier-style.css    → overrides the main UI stylesheet
+assets/css/dossier-print.css   → overrides the print/PDF stylesheet
+```
+
+If these files exist, the plugin uses them instead of its defaults — in the live page, the client-side PagedJS preview, and server-side PDF generation.
+
+Alternatively, you can add extra stylesheets alongside the plugin's by overriding the `dossier-header` snippet.
 
 Key classes:
 - `.dossier` — main flex container

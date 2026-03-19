@@ -4,6 +4,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
 	var config = window.dossierConfig || {};
 	var assetsBase = config.assets || '/media/plugins/adrien/dossier';
+	var printCssUrl = config.printCss || assetsBase + '/css/dossier-print.css';
+	var styleCssUrl = config.styleCss || assetsBase + '/css/dossier-style.css';
 
 	var options = document.getElementById('dossier-options');
 	var btnPdf = document.getElementById('btn-pdf');
@@ -259,7 +261,7 @@ document.addEventListener('DOMContentLoaded', function () {
 				}
 
 				// Load PagedJS CSS into the document
-				addStylesheet('paged-print-css', assetsBase + '/css/print.css');
+				addStylesheet('paged-print-css', printCssUrl);
 				addStylesheet('paged-interface-css', assetsBase + '/css/pagedjs/interface/interface.css');
 				addStylesheet('paged-recto-verso-css', assetsBase + '/css/pagedjs/interface/recto-verso.css');
 
@@ -271,7 +273,7 @@ document.addEventListener('DOMContentLoaded', function () {
 					var paged = new Paged.Previewer();
 					paged.preview(
 						content,
-						[assetsBase + '/css/print.css', assetsBase + '/css/pagedjs/interface/interface.css', assetsBase + '/css/pagedjs/interface/recto-verso.css'],
+						[printCssUrl, assetsBase + '/css/pagedjs/interface/interface.css', assetsBase + '/css/pagedjs/interface/recto-verso.css'],
 						main
 					);
 				}
@@ -384,8 +386,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
 		var html = '<!doctype html><html><head>' +
 			'<meta charset="utf-8">' +
-			'<link rel="stylesheet" href="' + assetsBase + '/css/style.css">' +
-			'<link rel="stylesheet" href="' + assetsBase + '/css/print.css">' +
+			'<link rel="stylesheet" href="' + styleCssUrl + '">' +
+			'<link rel="stylesheet" href="' + printCssUrl + '">' +
 			qrScript +
 			'<script src="' + assetsBase + '/js/paged.polyfill.js"><\/script>' +
 			'</head><body class="print-view">' +

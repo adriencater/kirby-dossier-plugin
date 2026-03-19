@@ -6,11 +6,15 @@
  * Must include the plugin's CSS and paged.js for the preview to work.
  *
  * Plugin assets are served at:
- *   /media/plugins/adrien/dossier/css/style.css
+ *   /media/plugins/adrien/dossier/css/dossier-style.css
  *   /media/plugins/adrien/dossier/js/paged.js
  *   /media/plugins/adrien/dossier/js/app.js
  */
 $pluginAssets = url('media/plugins/adrien/dossier');
+$siteStyleCss = kirby()->root('assets') . '/css/dossier-style.css';
+$styleCssUrl = file_exists($siteStyleCss)
+	? url('assets/css/dossier-style.css')
+	: $pluginAssets . '/css/dossier-style.css';
 ?>
 <!doctype html>
 <html lang="en">
@@ -18,7 +22,7 @@ $pluginAssets = url('media/plugins/adrien/dossier');
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<title><?= $page->title() ?> — <?= $site->title() ?></title>
-	<link rel="stylesheet" href="<?= $pluginAssets ?>/css/style.css">
+	<link rel="stylesheet" href="<?= $styleCssUrl ?>">
 	<script src="<?= $pluginAssets ?>/js/paged.js"></script>
 </head>
 <body>
