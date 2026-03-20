@@ -309,24 +309,52 @@ Kirby::plugin('adrien/dossier', [
 					$baseUrl = option('adrien.dossier.pdf.baseurl');
 
 					if ($baseUrl) {
-						// baseurl mode: use <link> tags, let Puppeteer fetch assets
+						// baseurl mode: inline CSS (to avoid CORS), absolute URLs for images/fonts
 						$baseUrl = rtrim($baseUrl, '/');
 						$siteAssetsDir = kirby()->root('assets') . '/css';
-						$pluginAssetsUrl = $baseUrl . '/media/plugins/adrien/dossier';
 
-						$styleCssUrl = file_exists($siteAssetsDir . '/dossier-style.css')
-							? $baseUrl . '/assets/css/dossier-style.css'
-							: $pluginAssetsUrl . '/css/dossier-style.css';
-						$printCssUrl = file_exists($siteAssetsDir . '/dossier-print.css')
-							? $baseUrl . '/assets/css/dossier-print.css'
-							: $pluginAssetsUrl . '/css/dossier-print.css';
+						$styleCss = file_exists($siteAssetsDir . '/dossier-style.css')
+							? file_get_contents($siteAssetsDir . '/dossier-style.css')
+							: file_get_contents($pluginAssets . '/css/dossier-style.css');
+						$printCss = file_exists($siteAssetsDir . '/dossier-print.css')
+							? file_get_contents($siteAssetsDir . '/dossier-print.css')
+							: file_get_contents($pluginAssets . '/css/dossier-print.css');
 
-						$cssLinks = '<link rel="stylesheet" href="' . $styleCssUrl . '">';
+						// Additional CSS from pdf.css option with url() rewritten to absolute
+						$extraCss = '';
 						$pdfCssFiles = option('adrien.dossier.pdf.css', []);
+						$assetsRoot = kirby()->root('assets');
 						foreach ($pdfCssFiles as $cssFile) {
-							$cssLinks .= "\n<link rel=\"stylesheet\" href=\"{$baseUrl}/assets/{$cssFile}\">";
+							$cssPath = str_starts_with($cssFile, '/') ? $cssFile : $assetsRoot . '/' . $cssFile;
+							if (file_exists($cssPath)) {
+								$cssDir = dirname($cssFile);
+								$css = file_get_contents($cssPath);
+								// Rewrite relative url() to absolute URLs
+								$css = preg_replace_callback(
+									'/url\(["\']?([^"\')\s]+)["\']?\)/',
+									function ($m) use ($baseUrl, $cssDir) {
+										$ref = $m[1];
+										if (str_starts_with($ref, 'data:') || str_starts_with($ref, 'http')) {
+											return $m[0];
+										}
+										// Resolve relative path against the CSS file's directory
+										$absPath = '/assets/' . $cssDir . '/' . $ref;
+										// Normalize ../ segments
+										$parts = [];
+										foreach (explode('/', $absPath) as $part) {
+											if ($part === '..') {
+												array_pop($parts);
+											} elseif ($part !== '' && $part !== '.') {
+												$parts[] = $part;
+											}
+										}
+										return 'url("' . $baseUrl . '/' . implode('/', $parts) . '")';
+									},
+									$css
+								);
+								$extraCss .= $css . "\n";
+							}
 						}
-						$cssLinks .= "\n" . '<link rel="stylesheet" href="' . $printCssUrl . '">';
 
 						// Convert relative image src to absolute URLs
 						$body = preg_replace_callback(
@@ -346,7 +374,9 @@ Kirby::plugin('adrien/dossier', [
 						<html>
 						<head>
 						<meta charset="utf-8">
-						{$cssLinks}
+						<style>{$styleCss}</style>
+						<style>{$extraCss}</style>
+						<style>{$printCss}</style>
 						<style>{$hideRules}</style>
 						<script>{$qrJs}</script>
 						{$qrInit}
