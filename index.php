@@ -32,6 +32,8 @@ Kirby::plugin('adrien/dossier', [
 		// PDF service
 		'pdf.endpoint'   => 'http://localhost:3100/render',
 		'pdf.mode'       => 'html',  // 'html' (inline, for local dev) or 'url' (fetch-based, for production)
+		'pdf.css'        => [],       // additional CSS files for server-side PDF (absolute paths or relative to assets/)
+		'pdf.baseurl'    => null,     // base URL for resolving assets in PDF; when set, uses <link> tags instead of inlining
 	],
 
 	// ── Blueprints ──────────────────────────────────────────
@@ -257,7 +259,7 @@ Kirby::plugin('adrien/dossier', [
 						'attachments' => $attachments,
 					]);
 				} else {
-					// HTML mode: build self-contained HTML with inlined assets
+					// HTML mode: build HTML and send to PDF service
 					$parts = [];
 
 					if ($showCover) {
@@ -274,15 +276,7 @@ Kirby::plugin('adrien/dossier', [
 
 					$body = implode("\n", $parts);
 
-					// Inline CSS assets
 					$pluginAssets = __DIR__ . '/assets';
-					$siteAssetsDir = kirby()->root('assets') . '/css';
-					$styleCss = file_exists($siteAssetsDir . '/dossier-style.css')
-						? file_get_contents($siteAssetsDir . '/dossier-style.css')
-						: file_get_contents($pluginAssets . '/css/dossier-style.css');
-					$printCss = file_exists($siteAssetsDir . '/dossier-print.css')
-						? file_get_contents($siteAssetsDir . '/dossier-print.css')
-						: file_get_contents($pluginAssets . '/css/dossier-print.css');
 					$qrJs = file_get_contents($pluginAssets . '/js/qrcode.js');
 
 					// Visibility overrides
@@ -312,47 +306,139 @@ Kirby::plugin('adrien/dossier', [
 						SCRIPT;
 					}
 
-					// Convert image src to inline base64 data URIs
-					$body = preg_replace_callback(
-						'/(<img[^>]+src=")([^"]+)(")/i',
-						function ($m) {
-							$url = $m[2];
-							$mediaPrefix = '/media/';
-							$pos = strpos($url, $mediaPrefix);
-							if ($pos !== false) {
-								$relPath = substr($url, $pos);
-								$filePath = kirby()->root('index') . $relPath;
-							} elseif (str_starts_with($url, '/')) {
-								$filePath = kirby()->root('index') . $url;
-							} else {
-								return $m[0];
-							}
-							if (file_exists($filePath)) {
-								$mime = mime_content_type($filePath);
-								$data = base64_encode(file_get_contents($filePath));
-								return $m[1] . 'data:' . $mime . ';base64,' . $data . $m[3];
-							}
-							return $m[0];
-						},
-						$body
-					);
+					$baseUrl = option('adrien.dossier.pdf.baseurl');
 
-					$html = <<<HTML
-					<!doctype html>
-					<html>
-					<head>
-					<meta charset="utf-8">
-					<style>{$styleCss}</style>
-					<style>{$printCss}</style>
-					<style>{$hideRules}</style>
-					<script>{$qrJs}</script>
-					{$qrInit}
-					</head>
-					<body class="print-view">
-					{$body}
-					</body>
-					</html>
-					HTML;
+					if ($baseUrl) {
+						// baseurl mode: use <link> tags, let Puppeteer fetch assets
+						$baseUrl = rtrim($baseUrl, '/');
+						$siteAssetsDir = kirby()->root('assets') . '/css';
+						$pluginAssetsUrl = $baseUrl . '/media/plugins/adrien/dossier';
+
+						$styleCssUrl = file_exists($siteAssetsDir . '/dossier-style.css')
+							? $baseUrl . '/assets/css/dossier-style.css'
+							: $pluginAssetsUrl . '/css/dossier-style.css';
+						$printCssUrl = file_exists($siteAssetsDir . '/dossier-print.css')
+							? $baseUrl . '/assets/css/dossier-print.css'
+							: $pluginAssetsUrl . '/css/dossier-print.css';
+
+						$cssLinks = '<link rel="stylesheet" href="' . $styleCssUrl . '">';
+						$pdfCssFiles = option('adrien.dossier.pdf.css', []);
+						foreach ($pdfCssFiles as $cssFile) {
+							$cssLinks .= "\n<link rel=\"stylesheet\" href=\"{$baseUrl}/assets/{$cssFile}\">";
+						}
+						$cssLinks .= "\n" . '<link rel="stylesheet" href="' . $printCssUrl . '">';
+
+						// Convert relative image src to absolute URLs
+						$body = preg_replace_callback(
+							'/(<img[^>]+src=")([^"]+)(")/i',
+							function ($m) use ($baseUrl) {
+								$url = $m[2];
+								if (str_starts_with($url, 'http') || str_starts_with($url, 'data:')) {
+									return $m[0];
+								}
+								return $m[1] . $baseUrl . $url . $m[3];
+							},
+							$body
+						);
+
+						$html = <<<HTML
+						<!doctype html>
+						<html>
+						<head>
+						<meta charset="utf-8">
+						{$cssLinks}
+						<style>{$hideRules}</style>
+						<script>{$qrJs}</script>
+						{$qrInit}
+						</head>
+						<body class="print-view">
+						{$body}
+						</body>
+						</html>
+						HTML;
+					} else {
+						// Self-contained mode: inline all CSS and images as base64
+						$siteAssetsDir = kirby()->root('assets') . '/css';
+						$styleCss = file_exists($siteAssetsDir . '/dossier-style.css')
+							? file_get_contents($siteAssetsDir . '/dossier-style.css')
+							: file_get_contents($pluginAssets . '/css/dossier-style.css');
+						$printCss = file_exists($siteAssetsDir . '/dossier-print.css')
+							? file_get_contents($siteAssetsDir . '/dossier-print.css')
+							: file_get_contents($pluginAssets . '/css/dossier-print.css');
+
+						// Additional CSS from pdf.css option with base64 url() resolution
+						$extraCss = '';
+						$pdfCssFiles = option('adrien.dossier.pdf.css', []);
+						$assetsRoot = kirby()->root('assets');
+						foreach ($pdfCssFiles as $cssFile) {
+							$cssPath = str_starts_with($cssFile, '/') ? $cssFile : $assetsRoot . '/' . $cssFile;
+							if (file_exists($cssPath)) {
+								$cssDir = dirname($cssPath);
+								$css = file_get_contents($cssPath);
+								$css = preg_replace_callback(
+									'/url\(["\']?([^"\')\s]+)["\']?\)/',
+									function ($m) use ($cssDir) {
+										$ref = $m[1];
+										if (str_starts_with($ref, 'data:') || str_starts_with($ref, 'http')) {
+											return $m[0];
+										}
+										$filePath = realpath($cssDir . '/' . $ref);
+										if ($filePath && file_exists($filePath)) {
+											$mime = mime_content_type($filePath);
+											$data = base64_encode(file_get_contents($filePath));
+											return 'url("data:' . $mime . ';base64,' . $data . '")';
+										}
+										return $m[0];
+									},
+									$css
+								);
+								$extraCss .= $css . "\n";
+							}
+						}
+
+						// Convert image src to inline base64 data URIs
+						$body = preg_replace_callback(
+							'/(<img[^>]+src=")([^"]+)(")/i',
+							function ($m) {
+								$url = $m[2];
+								$mediaPrefix = '/media/';
+								$pos = strpos($url, $mediaPrefix);
+								if ($pos !== false) {
+									$relPath = substr($url, $pos);
+									$filePath = kirby()->root('index') . $relPath;
+								} elseif (str_starts_with($url, '/')) {
+									$filePath = kirby()->root('index') . $url;
+								} else {
+									return $m[0];
+								}
+								if (file_exists($filePath)) {
+									$mime = mime_content_type($filePath);
+									$data = base64_encode(file_get_contents($filePath));
+									return $m[1] . 'data:' . $mime . ';base64,' . $data . $m[3];
+								}
+								return $m[0];
+							},
+							$body
+						);
+
+						$html = <<<HTML
+						<!doctype html>
+						<html>
+						<head>
+						<meta charset="utf-8">
+						<style>{$styleCss}</style>
+						<style>{$extraCss}</style>
+						<style>{$printCss}</style>
+						<style>{$hideRules}</style>
+						<script>{$qrJs}</script>
+						{$qrInit}
+						</head>
+						<body class="print-view">
+						{$body}
+						</body>
+						</html>
+						HTML;
+					}
 
 					$payload = json_encode([
 						'html' => $html,
